@@ -1,0 +1,102 @@
+#!/usr/bin/env python
+
+#
+# A sample training component that trains a simple scikit-learn decision tree model.
+# This implementation works in File mode and makes no assumptions about the input file names.
+# Input is specified as CSV with a data point in each row and the labels in the first column.
+
+from __future__ import print_function
+
+import os
+import json
+import pickle
+import sys
+import traceback
+
+from pyspark.sql.types import *
+from pyspark.sql.functions import *
+from bigdl.nn.layer import *
+from bigdl.optim.optimizer import *
+from bigdl.nn.criterion import *
+
+from zoo.common.nncontext import *
+from zoo.pipeline.nnframes import *
+
+# import pandas as pd
+
+# from sklearn import tree
+
+# These are the paths to where SageMaker mounts interesting things in your container.
+
+prefix = '/opt/ml/'
+
+input_path = prefix + 'input/data'
+output_path = os.path.join(prefix, 'output')
+model_path = os.path.join(prefix, 'model')
+param_path = os.path.join(prefix, 'input/config/hyperparameters.json')
+
+# This algorithm has a single channel of input data called 'training'. Since we run in
+# File mode, the input files are copied to the directory specified here.
+channel_name='training'
+training_path = os.path.join(input_path, channel_name)
+
+# The function to execute the training.
+def train():
+    print('Starting the training.')
+    try:
+        # Read in any hyperparameters that the user passed with the training job
+        with open(param_path, 'r') as tc:
+            trainingParams = json.load(tc)
+
+        # Take the set of files and read them all into a single pandas dataframe
+        input_file = os.path.join(training_path, "input.csv")
+        if not os.path.isfile(input_file):
+            raise ValueError(('There are no files in {}.\n' +
+                              'This usually indicates that the channel ({}) was incorrectly specified,\n' +
+                              'the data specification in S3 was incorrectly specified or the role specified\n' +
+                              'does not have permission to access the data.').format(training_path, channel_name))
+
+
+        sparkConf = SparkConf().setAppName("Sagemaker Zoo example")
+        sc = init_nncontext(sparkConf)
+        sql_context = SQLContext(sc)
+
+        raw = sql_context.read \
+            .option("timestampFormat", "yyyy/MM/dd HH:mm:ss ZZ") \
+            .option("inferSchema", True) \
+            .option("header", "true") \
+            .option("mode", "DROPMALFORMED") \
+            .csv(input_file)
+
+        df = raw.withColumn("features", array("a", "b", "c", "d"))
+
+        model = Sequential().add(Linear(4, 2)).add(LogSoftMax())
+
+        learning_rate = float(trainingParams.get("learning_rate", 0.003))
+        print("type of learning_rate",type(learning_rate))
+        max_epoch = int(trainingParams.get("epochs", 5))
+        print("type of epochs", type(max_epoch))
+
+        classifier = NNClassifier(model, ClassNLLCriterion(), SeqToTensor([4])) \
+            .setLearningRate(learning_rate).setBatchSize(4).setMaxEpoch(max_epoch)
+
+        nnmodel = classifier.fit(df)
+        nnmodel.save(os.path.join(model_path, "logstic_regression"))
+
+        print('Training complete.')
+    except Exception as e:
+        # Write out an error file. This will be returned as the failureReason in the
+        # DescribeTrainingJob result.
+        trc = traceback.format_exc()
+        with open(os.path.join(output_path, 'failure'), 'w') as s:
+            s.write('Exception during training: ' + str(e) + '\n' + trc)
+        # Printing this causes the exception to be in the training job logs, as well.
+        print('Exception during training: ' + str(e) + '\n' + trc, file=sys.stderr)
+        # A non-zero exit code causes the training job to be marked as Failed.
+        sys.exit(255)
+
+if __name__ == '__main__':
+    train()
+
+    # A zero exit code causes the job to be marked a Succeeded.
+    sys.exit(0)

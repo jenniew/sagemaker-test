@@ -1,0 +1,22 @@
+ñ:#com.intel.analytics.bigdl.nn.LinearB
+module_tagsz:FloatB"
+module_numericsz:FloatB
+	inputSizeB
+
+outputSizeB
+withBias@B
+wRegularizer	B
+bRegularizer	B
+
+initWeight
+B
+initBias
+B
+initGradWeight
+B
+initGradBias
+J0.6.0PZ4c514988`ÃÉ¢“x‚  (0BHŒŒ²‘HÎÊ˜‚ 	(0BHŒŒ²‘HöÄÏ‚†:'com.intel.analytics.bigdl.nn.LogSoftMaxB
+module_tagsz:FloatB"
+module_numericsz:FloatJ0.6.0PZfb3ec839`—‚¬Ç:'com.intel.analytics.bigdl.nn.SequentialB
+module_tagsz:FloatB"
+module_numericsz:FloatJ0.6.0PZ6996604`ª´³Ìx‚  (0BHŒŒ²‘HÎÊ˜‚ 	(0BHŒŒ²‘HöÄÏ‚

@@ -1,0 +1,1 @@
+{"class":"com.intel.analytics.zoo.pipeline.nnframes.NNClassifierModel","timestamp":1533678390981,"sparkVersion":"2.2.1","uid":"DLClassifierModel","paramMap":{"predictionCol":"prediction","batchSize":4,"featuresCol":"features"},"tensorDataType":"TensorFloat"}
