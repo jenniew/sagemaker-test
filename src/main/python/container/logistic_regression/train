@@ -49,8 +49,9 @@ def train():
             trainingParams = json.load(tc)
 
         # Take the set of files and read them all into a single pandas dataframe
-        input_file = os.path.join(training_path, "input.csv")
-        if not os.path.isfile(input_file):
+        # input_file = os.path.join(training_path, "input.csv")
+        input_file = os.path.join(training_path, "input_parquet")
+        if not os.path.exists(input_file):
             raise ValueError(('There are no files in {}.\n' +
                               'This usually indicates that the channel ({}) was incorrectly specified,\n' +
                               'the data specification in S3 was incorrectly specified or the role specified\n' +
@@ -61,14 +62,16 @@ def train():
         sc = init_nncontext(sparkConf)
         sql_context = SQLContext(sc)
 
-        raw = sql_context.read \
-            .option("timestampFormat", "yyyy/MM/dd HH:mm:ss ZZ") \
-            .option("inferSchema", True) \
-            .option("header", "true") \
-            .option("mode", "DROPMALFORMED") \
-            .csv(input_file)
 
-        df = raw.withColumn("features", array("a", "b", "c", "d"))
+        # raw = sql_context.read \
+        #     .option("timestampFormat", "yyyy/MM/dd HH:mm:ss ZZ") \
+        #     .option("inferSchema", True) \
+        #     .option("header", "true") \
+        #     .option("mode", "DROPMALFORMED") \
+        #     .csv(input_file)
+
+        # df = raw.withColumn("features", array("a", "b", "c", "d"))
+        df = sql_context.read.parquet(input_file)
 
         model = Sequential().add(Linear(4, 2)).add(LogSoftMax())
 

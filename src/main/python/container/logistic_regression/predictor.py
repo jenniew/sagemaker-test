@@ -53,7 +53,7 @@ class ScoringService(object):
         model = cls.get_model()
         classifier_model = NNClassifierModel(model, SeqToTensor([4])) \
             .setBatchSize(4)
-        return classifier_model.transform(input)
+        return classifier_model.transform(input).select("prediction")
 
 # The flask app for serving predictions
 app = flask.Flask(__name__)
@@ -81,24 +81,28 @@ def transformation():
         data = flask.request.data.decode('utf-8')
         s = StringIO.StringIO(data)
         lines = s.readlines()
-        features = [map(lambda x: float(x), line.split(",")) for line in lines]
+        features = [[map(lambda x: float(x), line.split(","))] for line in lines]
 
+        # schema = StructType([
+        #     StructField("a", FloatType()),
+        #     StructField("b", FloatType()),
+        #     StructField("c", FloatType()),
+        #     StructField("d", FloatType()),
+        #
+        # ])
         schema = StructType([
-            StructField("a", FloatType()),
-            StructField("b", FloatType()),
-            StructField("c", FloatType()),
-            StructField("d", FloatType()),
-
+            StructField("features", ArrayType(FloatType()))
         ])
-        raw = ScoringService.sql_context.createDataFrame(features, schema=schema)
-        df = raw.withColumn("features", array("a", "b", "c", "d"))
+        # raw = ScoringService.sql_context.createDataFrame(features, schema=schema)
+        # df = raw.withColumn("features", array("a", "b", "c", "d"))
+        df = ScoringService.sql_context.createDataFrame(features, schema=schema)
         print('Invoked with {} records'.format(len(lines)))
     else:
         return flask.Response(response='This predictor only supports CSV data', status=415, mimetype='text/plain')
 
     # Do the prediction
     predictions = ScoringService.predict(df)
-    output = predictions.collect()
+    output = predictions.rdd.flatMap(list).collect()
 
     # Convert from numpy back to CSV
     out = StringIO.StringIO()
